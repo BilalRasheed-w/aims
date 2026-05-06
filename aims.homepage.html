@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rasheed || CMS Tool Suite</title>
+<style>
+  /* Base & Reset Styles */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    margin: 0;
+    background: #0f0f11;
+    color: #e4e4e7;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+  /* Sidebar Design */
+  .sidebar {
+    width: 190px; /* Decreased from 240px to make buttons narrower */
+    padding: 20px 12px;
+    border-right: 1px solid #27272a;
+    background-color: #18181b;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    position: relative; /* Added for the toggle positioning */
+    z-index: 10;
+  }
+
+  .sidebar.collapsed { margin-left: -190px; }
+
+  .sidebar-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 13px; /* Slightly reduced font to fit the narrower buttons perfectly */
+    color: #a1a1aa;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    user-select: none;
+    width: 100%;
+  }
+
+  .sidebar-item:hover { background: #3f3f46; color: #e4e4e7; }
+
+  .sidebar-item.active-btn {
+    background: #3f3f46;
+    border-color: #52525b;
+    color: #ffffff;
+    border-left: 3px solid #a1a1aa;
+  }
+
+  /* Semicircle Divider Toggle */
+  .divider-toggle {
+    position: absolute;
+    right: -15px; /* Sits exactly outside the sidebar */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 48px;
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-left: none; /* Seamlessly connects to the sidebar's right border */
+    border-radius: 0 24px 24px 0; /* Creates the semicircle shape pointing right */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #a1a1aa;
+    font-size: 10px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .divider-toggle:hover {
+    background-color: #3f3f46;
+    color: #fff;
+  }
+
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow: hidden;
+    background: #0f0f11;
+    min-width: 0;
+  }
+
+  .page { display: none; height: 100%; width: 100%; min-height: 0; overflow-y: auto; }
+  .page.active { display: flex; flex-direction: column; animation: fadeIn 0.25s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Shared CMS/Table Container Layout */
+  .cms-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #18181b;
+  }
+
+  .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #18181b; }
+  .pane + .pane { border-left: 1px solid #27272a; }
+
+  .label {
+    padding: 6px 12px;
+    background: #202024;
+    color: #e4e4e7;
+    font-size: 11px;
+    font-weight: 700;
+    border-bottom: 1px solid #27272a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 42px;
+    flex-shrink: 0;
+  }
+
+  .editable-box {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    outline: none;
+    font-size: 13px;
+    background: #0f0f11;
+    color: #e4e4e7;
+    line-height: 1.4;
+  }
+
+  .editable-box p, .editable-box div { margin: 0 0 2px 0 !important; padding: 0 !important; }
+  .editable-box b, .editable-box strong { color: #ff5f5f; }
+
+  .output-box { flex: 1; padding: 14px; overflow-y: auto; background: #141416; }
+
+  table { width: 100%; border-collapse: collapse; border: 1px solid #3f3f46; background: #18181b; margin-bottom: 20px; table-layout: fixed; }
+  td, th { border: 1px solid #3f3f46; padding: 6px 8px; font-size: 12px; color: #e4e4e7; vertical-align: top; word-wrap: break-word; }
+  .col-label { width: 100px; font-weight: bold; color: #a1a1aa; background: #1c1c21; }
+  .is-correct-row { background-color: #1a2e1a; }
+  .col-status { width: 80px; text-align: center; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+
+  /* New Table Splitter Specific Alignment Styles */
+  #ts_table-wrapper .head-cell { text-align: center !important; vertical-align: middle !important; height: 30px; font-weight: bold; background: #1c1c21; color: #a1a1aa;}
+  #ts_table-wrapper .col-marker { width: 45px; text-align: center; font-weight: bold; color: #a1a1aa;}
+  #ts_table-wrapper .col-content { text-align: left; }
+
+  .btn {
+    padding: 5px 12px;
+    background-color: #2b5797;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 11px;
+    transition: background 0.2s;
+  }
+  .btn:active { transform: scale(0.98); }
+
+  .copy-notif { font-size: 11px; color: #4ade80; font-weight: bold; display: none; margin-right: 8px; }
+  .hint { color: #71717a; font-size: 12px; padding: 10px; text-align: center; font-style: italic; }
+
+  /* VBA Code Portal Styles */
+  .secret-content { padding: 10px; }
+  .vba-section { margin-bottom: 30px; }
+  .vba-title { color: #4ade80; font-size: 16px; font-weight: bold; margin-bottom: 10px; border-left: 3px solid #2b5797; padding-left: 10px; }
+  .vba-block {
+    background: #000;
+    color: #d1d1d1;
+    padding: 15px;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    border: 1px solid #27272a;
+  }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="sidebar" id="sidebar">
+      <!-- Integrated Toggle Semicircle -->
+      <div class="divider-toggle" id="toggleBtn" onclick="toggleSidebar()">◀</div>
+
+      <div class="sidebar-item" id="btn7" onclick="showPage(7)">(Table Splitter)</div>
+      <div class="sidebar-item active-btn" id="btn1" onclick="showPage(1)">(CMS Tool)</div>
+      <div class="sidebar-item" id="btn3" onclick="showPage(3)">(Bold (A)(B)(C))</div>
+      <div class="sidebar-item" id="btn4" onclick="showPage(4)">(Bold A.B.C.)</div>
+      <div class="sidebar-item" id="btn5" onclick="showPage(5)">(CMS 1234)</div>
+      <div class="sidebar-item" id="btn6" onclick="showPage(6)">Item 6</div>
+    </div>
+    
+    <div class="content">
+      <!-- PAGE 7: TABLE SPLITTER -->
+      <div id="page7" class="page">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">LIST 1 (INPUT) <span id="ts_count1">0</span></div>
+            <div id="ts_list1" class="editable-box" contenteditable="true" style="white-space: pre-wrap;"></div>
+            <div class="label" style="border-top:1px solid #27272a">LIST 2 (EXTRACTED) <span id="ts_count2">0</span></div>
+            <div id="ts_list2" class="editable-box" contenteditable="true" style="white-space: pre-wrap;"></div>
+          </div>
+          <div class="pane" style="flex: 1.5;">
+            <div class="label">
+              <span>TABLE EXPORTER (Auto-Split)</span>
+              <div>
+                <span id="ts_copy-status" class="copy-notif">Copied!</span>
+                <button class="btn" onclick="ts_copyTable()">Copy for MS Word</button>
+              </div>
+            </div>
+            <div id="ts_table-wrapper" class="output-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 1: CMS TOOL -->
+      <div id="page1" class="page active">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">LIST 1 (Input Text)</div>
+            <div id="cmsList1" class="editable-box" contenteditable="true"></div>
+          </div>
+          <div class="pane">
+            <div class="label"><span>LIST 2 (CMS Tables)</span><div><span id="notif1" class="copy-notif">Copied!</span><button class="btn" onclick="copyCmsTables()">Copy Tables</button></div></div>
+            <div id="cmsList2" class="output-box"><div id="tables-wrapper"><div class="hint">Waiting for input...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 2: TABLE TOOL (Legacy) -->
+      <div id="page2" class="page">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">LIST 1 (INPUT) <span id="count1" style="opacity:0.6;">0</span></div>
+            <div id="list1" class="editable-box" contenteditable="true"></div>
+            <div class="label" style="border-top: 1px solid #27272a;">LIST 2 (EXTRACTED) <span id="count2" style="opacity:0.6;">0</span></div>
+            <div id="list2" class="editable-box" contenteditable="true"></div>
+          </div>
+          <div class="pane" style="flex: 1.5;">
+            <div class="label"><span>MS WORD PREVIEW</span><div><span id="notif2" class="copy-notif">Copied!</span><button class="btn" onclick="copyTable()">Copy Table</button></div></div>
+            <div id="table-wrapper" class="output-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 3: CMS BOLD (A) -->
+      <div id="page3" class="page">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">PASTE CONTENT (BOLD/RED)</div>
+            <div id="boldInput" class="editable-box" contenteditable="true"></div>
+          </div>
+          <div class="pane">
+            <div class="label"><span>GENERATED TABLES</span><div><span id="notif3" class="copy-notif">Copied!</span><button class="btn" onclick="copyBoldTables()">Copy All</button></div></div>
+            <div id="boldOutput" class="output-box"><div id="bold-wrapper"><div class="hint">Waiting for paste...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 4: CMS EMERGENCY (A.) -->
+      <div id="page4" class="page">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">PASTE CONTENT</div>
+            <div id="emerInput" class="editable-box" contenteditable="true"></div>
+          </div>
+          <div class="pane">
+            <div class="label"><span>Generated TABLES</span><div><span id="notif4" class="copy-notif">Copied!</span><button class="btn" onclick="copyEmerTables()">Copy All</button></div></div>
+            <div id="emerOutput" class="output-box"><div id="emer-wrapper"><div class="hint">Waiting for paste...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 5: CMS 1234 -->
+      <div id="page5" class="page">
+        <div class="cms-container">
+          <div class="pane">
+            <div class="label">PASTE CONTENT (1-4 Mode)</div>
+            <div id="cms5Input" class="editable-box" contenteditable="true"></div>
+          </div>
+          <div class="pane">
+            <div class="label"><span>1234 GENERATED TABLES</span><div><span id="notif5" class="copy-notif">Copied!</span><button class="btn" onclick="copyCms5Tables()">Copy All Tables</button></div></div>
+            <div id="cms5Output" class="output-box"><div id="cms5-wrapper"><div class="hint">Waiting for paste...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 6: ITEM 6 / SECRET PORTAL -->
+      <div id="page6" class="page">
+          <!-- Initial Content -->
+          <div id="page6Default" class="hint" style="margin-top: 50px;">
+              <h2>Add New tool </h2>
+              <p>Add new tool to appear here.....</p>
+          </div>
+
+          <!-- VBA Content -->
+          <div id="page6Secret" class="secret-content" style="display:none;">
+              <h1 style="color: #ffffff; margin-bottom: 25px;">Welcome back Rasheed</h1>
+              
+              <div class="vba-section">
+                  <div class="vba-title">Draw tables</div>
+                  <div class="vba-block">Sub DrawTables()
+    Dim tbl As Table
+    For Each tbl In ActiveDocument.Tables
+        With tbl
+            .Style = "Table Grid"
+            .Borders.InsideLineStyle = wdLineStyleSingle
+            .Borders.OutsideLineStyle = wdLineStyleSingle
+            .Borders.InsideLineWidth = wdLineWidth050pt
+            .Borders.OutsideLineWidth = wdLineWidth050pt
+            .AutoFitBehavior (wdAutoFitWindow)
+        End With
+    Next tbl
+    MsgBox "Done! All tables have been formatted."
+End Sub</div>
+              </div>
+
+              <div class="vba-section">
+                  <div class="vba-title">Align columns</div>
+                  <div class="vba-block">Sub AlignColumns()
+    Dim tbl As Table
+    Dim r As Row
+    On Error Resume Next
+    Application.ScreenUpdating = False
+    For Each tbl In ActiveDocument.Tables
+        With tbl
+            .AllowAutoFit = False
+            .PreferredWidthType = wdPreferredWidthPoints
+            .PreferredWidth = InchesToPoints(6.27)
+            .Rows.LeftIndent = 0
+            .Rows.Alignment = wdAlignRowLeft
+            For Each r In .Rows
+                If r.Cells.Count = 3 Then
+                    r.Cells(1).Width = InchesToPoints(1.1)
+                    r.Cells(3).Width = InchesToPoints(1.1)
+                    r.Cells(2).Width = InchesToPoints(4.07)
+                ElseIf r.Cells.Count = 2 Then
+                    r.Cells(1).Width = InchesToPoints(1.1)
+                    r.Cells(2).Width = InchesToPoints(5.17)
+                End If
+            Next r
+        End With
+    Next tbl
+    Application.ScreenUpdating = True
+    MsgBox "Tables synced to 6.27 inches!"
+End Sub</div>
+              </div>
+
+              <div class="vba-section">
+                  <div class="vba-title">Bold answers</div>
+                  <div class="vba-block">Sub BoldCorrectAnswersFromTXT()
+    Dim doc As Document
+    Dim filePath As String
+    Dim fs As Object, ts As Object
+    Dim answerLine As String, parts() As String
+    Dim qNum As Long, correctAns As String
+    Set doc = ActiveDocument
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Select your answer key file"
+        .Filters.Add "Text Files", "*.txt", 1
+        If .Show <> -1 Then Exit Sub
+        filePath = .SelectedItems(1)
+    End With
+    Set ts = fs.OpenTextFile(filePath, 1)
+    Do While Not ts.AtEndOfStream
+        answerLine = Trim(ts.ReadLine)
+        If answerLine <> "" Then
+            parts = Split(answerLine, " ")
+            If UBound(parts) >= 1 Then
+                On Error Resume Next
+                qNum = CLng(parts(0))
+                correctAns = Trim(parts(1))
+                On Error GoTo 0
+                If qNum > 0 And Len(correctAns) > 0 Then
+                    Call HighlightSpecificAnswer(doc, qNum, correctAns)
+                End If
+            End If
+        End If
+    Loop
+    ts.Close
+    MsgBox "Processing Complete!", vbInformation
+End Sub
+
+Sub HighlightSpecificAnswer(doc As Document, qNum As Long, ans As String)
+    Dim rng As Range
+    Set rng = doc.Content
+    rng.Collapse Direction:=wdCollapseStart
+    With rng.Find
+        .Text = qNum & ". "
+        .Wrap = wdFindStop
+        If .Execute() Then
+            Dim searchRange As Range
+            Set searchRange = doc.Range(rng.End, doc.Content.End)
+            Set rng = searchRange
+            With rng.Find
+                .Text = "(" & ans & ")"
+                .MatchCase = True
+                .Wrap = wdFindStop
+                If .Execute() Then
+                    rng.Expand Unit:=wdSentence
+                    Selection.SetRange Start:=rng.Start, End:=rng.End
+                    Selection.Expand Unit:=wdParagraph
+                    Selection.Font.Bold = True
+                End If
+            End With
+        End If
+    End With
+End Sub</div>
+              </div>
+
+          </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let i6C = 0;
+    function showPage(num) {
+      if (num === 6) {
+          i6C++;
+          if (i6C >= 4) {
+              document.getElementById('page6Default').style.display = 'none';
+              document.getElementById('page6Secret').style.display = 'block';
+          }
+      } else { i6C = 0; }
+
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById('page' + num);
+      if(target) target.classList.add('active');
+      document.querySelectorAll('.sidebar-item').forEach(btn => btn.classList.remove('active-btn'));
+      const act = document.getElementById('btn' + num);
+      if(act) act.classList.add('active-btn');
+    }
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      const b = document.getElementById('toggleBtn');
+      sb.classList.toggle('collapsed');
+      b.textContent = sb.classList.contains('collapsed') ? '▶' : '◀';
+    }
+
+    function showFeedback(id) {
+        const el = document.getElementById(id);
+        el.style.display = 'inline';
+        setTimeout(() => el.style.display = 'none', 1500);
+    }
+
+    /* ITEM 1 */
+    const c1I = document.getElementById('cmsList1'), c1O = document.getElementById('tables-wrapper');
+    function parse1(t) {
+      const qStart = /^\s*(\d+)\s*[.)]\s*(.+)\s*$/;
+      const opt = /^\s*\(\s*([A-Da-d])\s*\)\s*(.+)\s*$/;
+      const lines = t.split(/\n/); let qs = [], cur = null;
+      for (let l of lines) {
+        l = l.trim(); if (!l) continue;
+        const qm = l.match(qStart);
+        if (qm) { if (cur) qs.push(cur); cur = { num: qm[1], text: qm[2], options: {} }; continue; }
+        const om = l.match(opt);
+        if (om && cur) { cur.options[om[1].toUpperCase()] = om[2]; continue; }
+        if (cur) cur.text += " " + l;
+      }
+      if (cur) qs.push(cur); return qs;
+    }
+    function build1(q) {
+      let h = `<table><tbody><tr><td class="col-label">Question. ${q.num}</td><td colspan="2">${q.text}</td></tr>`;
+      h += `<tr><td class="col-label">Type</td><td colspan="2">multiple_choice</td></tr>`;
+      ["A","B","C","D"].forEach(l => { h += `<tr><td class="col-label">Option</td><td>(${l}) ${q.options[l]||''}</td><td class="col-status">incorrect</td></tr>`; });
+      return h + `<tr><td class="col-label">Solution</td><td colspan="2">&nbsp;</td></tr><tr><td class="col-label">Marks</td><td>2</td><td class="col-status">0</td></tr></tbody></table>`;
+    }
+    c1I.addEventListener('input', () => {
+      const qs = parse1(c1I.innerText);
+      c1O.innerHTML = qs.length ? qs.map(build1).join('<p>&nbsp;</p>') : '<div class="hint">Waiting for input...</div>';
+    });
+    async function copyCmsTables() {
+      const b = new Blob([`<html><body>${c1O.innerHTML}</body></html>`], {type: "text/html"});
+      await navigator.clipboard.write([new ClipboardItem({"text/html": b})]);
+      showFeedback('notif1');
+    }
+
+    /* ITEM 2 */
+    const tI1 = document.getElementById("list1"), tI2 = document.getElementById("list2"), tO = document.getElementById("table-wrapper");
+    function updateT() {
+      const parseT = (txt) => {
+        const items = [];
+        txt.split("\n").filter(l => l.trim()).forEach(line => {
+          const m = line.match(/(\(?([0-9]+|[a-z]|[ivx]+)[\.\)\s])/i);
+          if (m && line.trim().startsWith(m[0].trim())) items.push({ m: m[1].trim(), c: line.replace(m[1], "").trim() });
+          else if (items.length > 0) items[items.length - 1].c += " " + line.trim();
+        });
+        return items;
+      };
+      const d1 = parseT(tI1.innerText), d2 = parseT(tI2.innerText);
+      const max = Math.max(d1.length, d2.length);
+      document.getElementById("count1").innerText = d1.length;
+      document.getElementById("count2").innerText = d2.length;
+      let h = `<table><thead><tr><th class="col-label" style="text-align:center" colspan="2">List - I</th><th class="col-label" style="text-align:center" colspan="2">List - II</th></tr></thead><tbody>`;
+      for (let i = 0; i < max; i++) {
+        const r1 = d1[i]||{m:"",c:""}, r2 = d2[i]||{m:"",c:""};
+        h += `<tr><td style="width:40px;text-align:center">${r1.m}</td><td>${r1.c}</td><td style="width:40px;text-align:center">${r2.m}</td><td>${r2.c}</td></tr>`;
+      }
+      tO.innerHTML = max ? h + `</tbody></table>` : '<div class="hint">Waiting for input...</div>';
+    }
+    tI1.addEventListener('input', updateT); tI2.addEventListener('input', updateT);
+    async function copyTable() {
+      const b = new Blob([`<html><body>${tO.innerHTML}</body></html>`], {type: "text/html"});
+      await navigator.clipboard.write([new ClipboardItem({"text/html": b})]);
+      showFeedback('notif2');
+    }
+
+    /* ITEM 3 & 4 Shared Builder */
+    function buildBoldTable(q) {
+      let h = `<table><tbody><tr><td class="col-label">Question. ${q.num}</td><td colspan="2">${q.text}</td></tr>`;
+      h += `<tr><td class="col-label">Type</td><td colspan="2">multiple_choice</td></tr>`;
+      for (let i = 0; i < 4; i++) {
+        const o = q.options[i];
+        const lbl = o ? o.label : `(${String.fromCharCode(65+i)})`;
+        const txt = o ? o.text : "";
+        const corr = o ? o.isCorrect : false;
+        h += `<tr class="${corr?'is-correct-row':''}"><td class="col-label">Option</td><td>${corr ? `<b>${lbl} ${txt}</b>` : `${lbl} ${txt}`}</td><td class="col-status">${corr ? 'correct' : 'incorrect'}</td></tr>`;
+      }
+      return h + `<tr><td class="col-label">Solution</td><td colspan="2">&nbsp;</td></tr><tr><td class="col-label">Marks</td><td>2</td><td class="col-status">0</td></tr></tbody></table>`;
+    }
+
+    /* ITEM 3 */
+    const bI = document.getElementById('boldInput'), bO = document.getElementById('bold-wrapper');
+    function parseBold() {
+      const nodes = Array.from(bI.childNodes);
+      const qStart = /^(\d+)\s*[.)]\s*([\s\S]*)/, opt = /^(\s*\([A-D1-4]\)\s*)([\s\S]*)/;
+      const qs = []; let cur = null, lastN = null, lastT = null;
+      nodes.forEach(node => {
+        let txt = node.textContent.trim(); if (!txt) return;
+        const qm = txt.match(qStart), om = txt.match(opt);
+        let isB = false; if (node.nodeType === 1) isB = node.querySelector('b, strong') || node.style.fontWeight === 'bold' || node.style.color === 'rgb(255, 95, 95)' || node.tagName === 'B' || node.tagName === 'STRONG';
+        if (qm && (lastN === null || parseInt(qm[1]) > lastN)) { if (cur) qs.push(cur); lastN = parseInt(qm[1]); cur = { num: qm[1], text: qm[2], options: [] }; lastT = "q"; }
+        else if (om && cur) { cur.options.push({ label: om[1].trim(), text: om[2].trim(), isCorrect: isB }); lastT = "o"; }
+        else if (cur) { if (lastT === "q") cur.text += "<br>" + txt; else if (cur.options.length) { let lo = cur.options[cur.options.length - 1]; lo.text += " " + txt; if (isB) lo.isCorrect = true; } }
+      });
+      if (cur) qs.push(cur); return qs;
+    }
+    bI.addEventListener('input', () => { bO.innerHTML = parseBold().map(buildBoldTable).join('<p>&nbsp;</p>') || '<div class="hint">Waiting for paste...</div>'; });
+    async function copyBoldTables() {
+      const b = new Blob([`<html><body>${bO.innerHTML}</body></html>`], {type: "text/html"});
+      await navigator.clipboard.write([new ClipboardItem({"text/html": b})]);
+      showFeedback('notif3');
+    }
+
+    /* ITEM 4 */
+    const eI = document.getElementById('emerInput'), eO = document.getElementById('emer-wrapper');
+    function parseEmer() {
+      const lines = Array.from(eI.children).length ? Array.from(eI.children) : eI.innerHTML.split(/<br\s*\/?>/i);
+      const qStart = /^(\d+)\s*[.)]\s*([\s\S]*)/, opt = /^(\s*[A-D1-4]\s*[.)]\s*)([\s\S]*)/;
+      const qs = []; let cur = null, lastT = null;
+      lines.forEach(item => {
+        let div = document.createElement('div'); div.innerHTML = typeof item === 'string' ? item : item.outerHTML;
+        let txt = div.innerText.trim(); if (!txt) return;
+        const qm = txt.match(qStart), om = txt.match(opt);
+        const isB = div.querySelector('b, strong') || div.style.fontWeight === 'bold' || div.innerHTML.includes('color: rgb(255, 95, 95)');
+        if (qm) { if (cur) qs.push(cur); cur = { num: qm[1], text: qm[2], options: [] }; lastT = "q"; }
+        else if (om && cur) { cur.options.push({ label: om[1].trim(), text: om[2].trim(), isCorrect: isB }); lastT = "o"; }
+        else if (cur) { if (lastT === "q") cur.text += "<br>" + txt; else if (cur.options.length) { let lo = cur.options[cur.options.length - 1]; lo.text += " " + txt; if (isB) lo.isCorrect = true; } }
+      });
+      if (cur) qs.push(cur); return qs;
+    }
+    eI.addEventListener('input', () => { eO.innerHTML = parseEmer().map(buildBoldTable).join('<p>&nbsp;</p>') || '<div class="hint">Waiting for paste...</div>'; });
+    async function copyEmerTables() {
+      const b = new Blob([`<html><body>${eO.innerHTML}</body></html>`], {type: "text/html"});
+      await navigator.clipboard.write([new ClipboardItem({"text/html": b})]);
+      showFeedback('notif4');
+    }
+
+    /* ITEM 5 */
+    const c5I = document.getElementById('cms5Input'), c5W = document.getElementById('cms5-wrapper');
+    function parse5() {
+      const lines = Array.from(c5I.children).length ? Array.from(c5I.children) : c5I.innerHTML.split(/<br\s*\/?>/i);
+      const qStart = /^(\d+)\s*[.)]\s*([\s\S]*)/, opt = /^(\s*[\(\[]?[1-4][\)\]]?\s*[.)]\s*)([\s\S]*)/;
+      const qs = []; let cur = null, lastT = null;
+      lines.forEach(item => {
+        let div = document.createElement('div'); div.innerHTML = typeof item === 'string' ? item : item.outerHTML;
+        let txt = div.innerText.trim(); if (!txt) return;
+        const qm = txt.match(qStart), om = txt.match(opt);
+        const isB = div.querySelector('b, strong') || div.style.fontWeight === 'bold' || div.innerHTML.includes('color: rgb(255, 95, 95)');
+        const isOpt = om && cur && (lastT === "o" || cur.options.length < 4);
+        if (qm && !isOpt) { if (cur) qs.push(cur); cur = { num: qm[1], text: qm[2], options: [] }; lastT = "q"; }
+        else if (isOpt) { cur.options.push({ label: om[1].trim(), text: om[2].trim(), isCorrect: isB }); lastT = "o"; }
+        else if (cur) { if (lastT === "q") cur.text += "<br>" + txt; else if (cur.options.length) { let lo = cur.options[cur.options.length - 1]; lo.text += "<br>" + txt; if (isB) lo.isCorrect = true; } }
+      });
+      if (cur) qs.push(cur); return qs;
+    }
+    function build5Table(q) {
+      let h = `<table><tbody><tr><td class="col-label">Question. ${q.num}</td><td colspan="2">${q.text}</td></tr>`;
+      h += `<tr><td class="col-label">Type</td><td colspan="2">multiple_choice</td></tr>`;
+      for (let i = 0; i < 4; i++) {
+        const o = q.options[i]; const lbl = o ? o.label : `(${i+1})`; const txt = o ? o.text : ""; const corr = o ? o.isCorrect : false;
+        h += `<tr class="${corr?'is-correct-row':''}"><td class="col-label">Option</td><td>${corr ? `<b>${lbl} ${txt}</b>` : `${lbl} ${txt}`}</td><td class="col-status">${corr ? 'correct' : 'incorrect'}</td></tr>`;
+      }
+      return h + `<tr><td class="col-label">Solution</td><td colspan="2">&nbsp;</td></tr><tr><td class="col-label">Marks</td><td>2</td><td class="col-status">0</td></tr></tbody></table>`;
+    }
+    c5I.addEventListener('input', () => { const d = parse5(); c5W.innerHTML = d.length ? d.map(build5Table).join('<p>&nbsp;</p>') : '<div class="hint">Waiting for paste...</div>'; });
+    async function copyCms5Tables() {
+      const b = new Blob([`<html><body>${c5W.innerHTML}</body></html>`], {type: "text/html"});
+      await navigator.clipboard.write([new ClipboardItem({"text/html": b})]);
+      showFeedback('notif5');
+    }
+
+    /* NEW PAGE 7 - TABLE SPLITTER */
+    const ts_list1 = document.getElementById("ts_list1");
+    const ts_list2 = document.getElementById("ts_list2");
+    const ts_tableWrapper = document.getElementById("ts_table-wrapper");
+
+    const ts_markerRegex = /(\(?([0-9]+|[a-z]|[ivx]+)[\.\)\s])/i;
+    const ts_horizontalRegex = /^(.+?)(\s{2,}|\t+)(\(?([0-9]+|[a-z]|[ivx]+)[\.\)\s].*)/i;
+
+    function ts_getMarkerType(str) {
+      const clean = str.replace(/[\(\)\.\s]/g, "").toLowerCase();
+      if (/^[0-9]+$/.test(clean)) return "num";
+      if (/^[ivx]+$/.test(clean)) return "roman";
+      if (/^[a-z]$/.test(clean)) return "alpha";
+      return null;
+    }
+
+    function ts_getMarkerValue(str) {
+      return str.replace(/[\(\)\.\s]/g, "").toLowerCase();
+    }
+
+    function ts_autoSplit() {
+      const lines = ts_list1.innerText.split(/\n/);
+      let b1 = [], b2 = [], firstType = null, splitPoint = false;
+
+      for (let line of lines) {
+        if (!line.trim()) continue;
+        const hMatch = line.match(ts_horizontalRegex);
+        const mMatch = line.match(new RegExp("^\\s*" + ts_markerRegex.source, "i"));
+
+        if (hMatch) {
+          b1.push(hMatch[1].trim());
+          b2.push(hMatch[3].trim());
+        } else if (mMatch && !splitPoint) {
+          const type = ts_getMarkerType(mMatch[1]);
+          const val = ts_getMarkerValue(mMatch[1]);
+          if (!firstType) {
+            firstType = type;
+            b1.push(line.trim());
+          } else if (type !== firstType || val === "1" || val === "a" || val === "i") {
+            splitPoint = true;
+            b2.push(line.trim());
+          } else {
+            b1.push(line.trim());
+          }
+        } else {
+          if (splitPoint) b2.push(line.trim());
+          else b1.push(line.trim());
+        }
+      }
+
+      if (b2.length > 0 && ts_list2.innerText.trim() === "") {
+        ts_list1.innerText = b1.join("\n");
+        ts_list2.innerText = b2.join("\n");
+      }
+    }
+
+    function ts_parse(text) {
+      const items = [];
+      text.split("\n").filter((l) => l.trim()).forEach((line) => {
+        const m = line.match(ts_markerRegex);
+        if (m && line.trim().startsWith(m[0].trim())) {
+          items.push({ m: m[1].trim(), c: line.replace(m[1], "").trim() });
+        } else if (items.length > 0) {
+          items[items.length - 1].c += " " + line.trim();
+        }
+      });
+      return items;
+    }
+
+    function ts_update() {
+      ts_autoSplit();
+      const d1 = ts_parse(ts_list1.innerText), d2 = ts_parse(ts_list2.innerText);
+      const max = Math.max(d1.length, d2.length);
+      document.getElementById("ts_count1").innerText = d1.length;
+      document.getElementById("ts_count2").innerText = d2.length;
+
+      if (max === 0) {
+        ts_tableWrapper.innerHTML = "";
+        return;
+      }
+
+      let html = `<table id="ts_target">
+        <thead>
+          <tr>
+            <th colspan="2" class="head-cell">List - I</th>
+            <th colspan="2" class="head-cell">List - II</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      for (let i = 0; i < max; i++) {
+        const r1 = d1[i] || { m: "", c: "" }, r2 = d2[i] || { m: "", c: "" };
+        html += `<tr>
+          <td class="col-marker">${r1.m}</td><td class="col-content">${r1.c}</td>
+          <td class="col-marker">${r2.m}</td><td class="col-content">${r2.c}</td>
+        </tr>`;
+      }
+      ts_tableWrapper.innerHTML = html + `</tbody></table>`;
+    }
+
+    ts_list1.addEventListener("input", ts_update);
+    ts_list2.addEventListener("input", ts_update);
+
+    async function ts_copyTable() {
+      const t = document.getElementById('ts_target');
+      if (!t) return;
+      const clone = t.cloneNode(true);
+      clone.querySelectorAll('th.head-cell, td.col-marker').forEach(el => {
+          el.style.textAlign = 'center';
+          el.style.verticalAlign = 'middle';
+      });
+      clone.querySelectorAll('td.col-content').forEach(el => {
+          el.style.textAlign = 'left';
+      });
+
+      const h = `<html><head><meta charset="utf-8">
+          <style>
+              table { border-collapse:collapse; width:100%; border:0.5pt solid black; }
+              td, th { border:0.5pt solid black; padding:2pt 5pt; font-family:'Times New Roman',serif; font-size:11pt; font-weight:normal; line-height:1.1; color: black; background: white; }
+          </style>
+          </head><body>${clone.outerHTML}</body></html>`;
+      
+      const blob = new Blob([h], { type: "text/html" });
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": blob })]);
+      showFeedback('ts_copy-status');
+    }
+
+    /* Shared Pastes */
+    [c1I, tI1, tI2, ts_list1, ts_list2].forEach(el => { 
+      el.addEventListener('paste', (e) => { 
+        e.preventDefault(); 
+        const t = e.clipboardData.getData('text/plain'); 
+        document.execCommand('insertText', false, t); 
+      }); 
+    });
+  </script>
+</body>
+</html>
